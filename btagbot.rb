@@ -24,7 +24,14 @@ Heroes = [
   "Soldier76",
   "Torbjorn",
   "Reinhardt",
-  "Zenyatta"]
+  "Zenyatta"
+]
+
+EdgelordQuotes = [
+  "I'm back. In black.",
+  "If it lives, I can kill it.",
+  "Die. Die!. DIE!!",
+]
 
 bot = Cinch::Bot.new do
   configure do |c|
@@ -33,9 +40,10 @@ bot = Cinch::Bot.new do
     c.nick = Heroes.sample
   end
 
-  on :message, /^!btags/ do |m|
+  on :message, /^!btags(.*)/ do |m, arg|
+    target = arg == " print" ? m.channel : m.user
     db.execute "SELECT nick, battletag FROM battletags;" do |row|
-      m.channel.send("Nick: #{row[0]} Battletag: #{row[1]}")
+      target.send("Nick: #{row[0]} Battletag: #{row[1]}")
     end
   end
 
@@ -64,6 +72,20 @@ bot = Cinch::Bot.new do
         m.bot.nick = h
       end
     end
+  end
+
+  on :message, /mei is bae/ do |m|
+    m.bot.nick = "Mei"
+  end
+
+  on :message, /edgelord/ do |m|
+    m.bot.nick = "Reaper"
+    m.channel.send EdgelordQuotes.sample
+  end
+
+  on :message, /^botsnack/ do |m|
+    m.bot.nick = "Winston"
+    m.channel.send("Did someone say... peanut butter?")
   end
 end
 
