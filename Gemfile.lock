@@ -2,12 +2,14 @@ GEM
   remote: https://rubygems.org/
   specs:
     cinch (2.3.2)
+    sqlite3 (1.3.11)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   cinch
+  sqlite3
 
 BUNDLED WITH
    1.10.6
