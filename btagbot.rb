@@ -1,5 +1,6 @@
 require 'cinch'
 require 'sqlite3'
+require 'date'
 
 db = SQLite3::Database.new "overwatchbot.db"
 
@@ -33,11 +34,28 @@ EdgelordQuotes = [
   "Die. Die!. DIE!!",
 ]
 
+Help = <<-EOF
+!help: this dialog
+!btags: list btags
+!btags print: spam btags at the channel and annoy everyone
+!setbtag <battletag>: set your battletag (please do this)
+!playing <time>: let people know when you will be playing after work
+!when: find out when people are playing
+!when print: spam when everyone is playing at the channel and annoy everyone
+botsnack: botsnack
+EOF
+
 bot = Cinch::Bot.new do
   configure do |c|
     c.server = "irc.us.cray.com"
     c.channels = ["#overwatch"]
     c.nick = Heroes.sample
+  end
+
+  on :message, /^!help/ do |m|
+    Help.split('\n').each do |line|
+      m.user.send(line)
+    end
   end
 
   on :message, /^!btags(.*)/ do |m, arg|
@@ -54,6 +72,31 @@ bot = Cinch::Bot.new do
     stmt = db.prepare "INSERT INTO battletags VALUES (?, ?);"
     stmt.execute m.user.nick, battletag
     m.channel.send("Nick: #{m.user.nick} changed battletag to #{battletag}")
+  end
+
+  on :message, /^!when(.*)/ do |m, arg|
+    stmt = db.prepare <<-SQL
+      SELECT battletag, date, time 
+      FROM playtimes LEFT JOIN battletags 
+      ON playtimes.nick=battletags.nick
+      WHERE date=?;
+    SQL
+
+    target = arg ==  " print" ? m.channel : m.user
+    target.send("Here's when people will be playing today:")
+    stmt.execute(Date.today.iso8601).each do |row|
+      target.send("#{row[0]}: #{row[2]}")
+    end
+  end
+
+  on :message, /^!playing (.+)/ do |m, playing|
+    stmt = db.prepare "DELETE FROM playtimes WHERE nick=?;"
+    stmt.execute m.user.nick
+
+    stmt = db.prepare "INSERT INTO playtimes VALUES (?, ?, ?)"
+    stmt.execute m.user.nick, Date.today.iso8601, playing
+
+    m.channel.send("#{m.user.nick} will be playing today (#{playing})")
   end
 
   on :message, /^we need to counter/ do |m|
@@ -86,6 +129,16 @@ bot = Cinch::Bot.new do
   on :message, /^botsnack/ do |m|
     m.bot.nick = "Winston"
     m.channel.send("Did someone say... peanut butter?")
+  end
+
+  on :message, /^!timeout (.+)/ do |m, user|
+    if m.channel.opped?(m.user)
+      m.bot.nick = "Tracer"
+      m.channel.kick user, "You need a time-out!"
+    else
+      m.bot.nick = "Tracer"
+      m.channel.kick m.user.nick, "You need a time-out!"
+    end
   end
 end
 
