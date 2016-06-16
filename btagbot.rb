@@ -5,7 +5,7 @@ require 'date'
 db = SQLite3::Database.new "overwatchbot.db"
 
 Heroes = [
-  "D.Va",
+  "D_Va",
   "Zarya",
   "Bastion",
   "Mei",
@@ -39,7 +39,8 @@ Help = <<-EOF
 !btags: list btags
 !btags print: spam btags at the channel and annoy everyone
 !setbtag <battletag>: set your battletag (please do this)
-!playing <time>: let people know when you will be playing after work
+!playing <time>: let people know when you will be playing after work (just today)
+!playing-persist <time>: let people know when you will be playing (persists)
 !when: find out when people are playing
 !when print: spam when everyone is playing at the channel and annoy everyone
 botsnack: botsnack
@@ -66,10 +67,7 @@ bot = Cinch::Bot.new do
   end
 
   on :message, /^!setbtag (.+)/ do |m, battletag|
-    stmt = db.prepare "DELETE FROM battletags WHERE nick=?;"
-    stmt.execute m.user.nick
-
-    stmt = db.prepare "INSERT INTO battletags VALUES (?, ?);"
+    stmt = db.prepare "INSERT OR REPLACE INTO battletags VALUES (?, ?);"
     stmt.execute m.user.nick, battletag
     m.channel.send("Nick: #{m.user.nick} changed battletag to #{battletag}")
   end
@@ -79,7 +77,7 @@ bot = Cinch::Bot.new do
       SELECT battletag, date, time 
       FROM playtimes LEFT JOIN battletags 
       ON playtimes.nick=battletags.nick
-      WHERE date=?;
+      WHERE date=? OR persist='true';
     SQL
 
     target = arg ==  " print" ? m.channel : m.user
@@ -89,12 +87,10 @@ bot = Cinch::Bot.new do
     end
   end
 
-  on :message, /^!playing (.+)/ do |m, playing|
-    stmt = db.prepare "DELETE FROM playtimes WHERE nick=?;"
-    stmt.execute m.user.nick
-
-    stmt = db.prepare "INSERT INTO playtimes VALUES (?, ?, ?)"
-    stmt.execute m.user.nick, Date.today.iso8601, playing
+  on :message, /^!(playing|playing-persist) (.+)/ do |m, cmd, playing|
+    persist = cmd == "playing-persist"
+    stmt = db.prepare "INSERT OR REPLACE INTO playtimes VALUES (?, ?, ?, ?)"
+    stmt.execute m.user.nick, Date.today.iso8601, playing, persist.to_s
 
     m.channel.send("#{m.user.nick} will be playing today (#{playing})")
   end
